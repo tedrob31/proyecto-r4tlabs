@@ -1,8 +1,8 @@
-import NextAuth from "next-auth";
+import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { SupabaseAdapter } from "@auth/supabase-adapter";
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
@@ -23,14 +23,11 @@ const handler = NextAuth({
   }),
   callbacks: {
     async redirect({ url, baseUrl }) {
-      // Custom redirect logic para manejar redirecciones a diferentes subdominios de clientes
-      // Ejemplo: tiendajuan.catalogo.com/admin
       if (url.startsWith(baseUrl)) return url;
       if (url.startsWith("/")) return new URL(url, baseUrl).toString();
       
       try {
         const parsedUrl = new URL(url);
-        // Permitimos redirecciones a los dominios de los clientes que terminan en .catalogo.com o .r4tlabs.com
         if (parsedUrl.hostname.endsWith('.catalogo.com') || parsedUrl.hostname.endsWith('.r4tlabs.com')) {
           return url;
         }
@@ -40,7 +37,6 @@ const handler = NextAuth({
       return baseUrl;
     },
     async session({ session, user }: any) {
-      // El user ID viene de Supabase gracias al adaptador
       if (session?.user) {
         session.user.id = user.id;
       }
@@ -48,9 +44,10 @@ const handler = NextAuth({
     }
   },
   pages: {
-    signIn: '/auth',
+    signIn: '/admin/login',
   },
   secret: process.env.NEXTAUTH_SECRET,
-});
+};
 
+const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
