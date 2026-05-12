@@ -1,45 +1,48 @@
-# docker-compose.yml
 version: "3.8"
 
 services:
-  traefik:
-    image: "traefik:v3.0"
-    container_name: "traefik"
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      # - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      # - "--certificatesresolvers.myresolver.acme.email=tu_correo@ejemplo.com"
-      # - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./letsencrypt:/letsencrypt"
-    restart: unless-stopped
-
   web:
     image: ghcr.io/tedrob31/proyecto-r4tlabs:latest
     container_name: "r4tlabs-web"
+    networks:
+      - r4tlabsnet
     environment:
       - NEXTAUTH_URL=${NEXTAUTH_URL}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - MAIN_DOMAIN=${MAIN_DOMAIN}
-      - AUTH_DOMAIN=${AUTH_DOMAIN}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`${MAIN_DOMAIN}`) || Host(`${AUTH_DOMAIN}`)"
-      - "traefik.http.routers.web.entrypoints=web"
-      - "traefik.http.services.web.loadbalancer.server.port=3000"
-      # Descomentar para habilitar HTTPS automáticamente
-      # - "traefik.http.routers.web-secure.rule=Host(`${MAIN_DOMAIN}`) || Host(`${AUTH_DOMAIN}`)"
-      # - "traefik.http.routers.web-secure.entrypoints=websecure"
-      # - "traefik.http.routers.web-secure.tls.certresolver=myresolver"
-    restart: unless-stopped
+      - MAIN_DOMAIN=${MAIN_DOMAIN:-r4tlabs.com}
+      - AUTH_DOMAIN=${AUTH_DOMAIN:-auth.r4tlabs.com}
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - NODE_OPTIONS='--max-old-space-size=1024'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/auth/providers"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=r4tlabsnet"
+        
+        # Router para los dominios
+        - "traefik.http.routers.r4tlabs-web.rule=Host(`${MAIN_DOMAIN:-r4tlabs.com}`) || Host(`${AUTH_DOMAIN:-auth.r4tlabs.com}`)"
+        - "traefik.http.routers.r4tlabs-web.entrypoints=websecure"
+        - "traefik.http.routers.r4tlabs-web.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.r4tlabs-web.service=r4tlabs-web-service"
+        
+        # Servicio indicando el puerto de Next.js
+        - "traefik.http.services.r4tlabs-web-service.loadbalancer.server.port=3000"
+
+networks:
+  r4tlabsnet:
+    external: true
+    name: r4tlabsnet
