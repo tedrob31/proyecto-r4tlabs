@@ -24,9 +24,7 @@ services:
     restart: unless-stopped
 
   web:
-    build: 
-      context: ./r4tlabs-web
-      dockerfile: Dockerfile
+    image: ghcr.io/tedrob31/proyecto-r4tlabs:latest
     container_name: "r4tlabs-web"
     environment:
       - NEXTAUTH_URL=${NEXTAUTH_URL}
