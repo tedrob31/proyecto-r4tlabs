@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(req: NextRequest) {
+export default function proxy(req: NextRequest) {
   const url = req.nextUrl.clone();
   
   // Get hostname of request (e.g. auth.r4tlabs.com, r4tlabs.com)
