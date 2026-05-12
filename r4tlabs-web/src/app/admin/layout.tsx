@@ -10,13 +10,6 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
-  
-  // Seguridad: Verificar si hay sesión y si el email coincide con el ADMIN_EMAIL
-  const adminEmail = process.env.ADMIN_EMAIL || "admin@r4tlabs.com";
-  
-  if (!session || !session.user || session.user.email !== adminEmail) {
-    redirect("/admin/login?error=AccessDenied");
-  }
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-300 flex flex-col selection:bg-blue-500/30">
@@ -28,19 +21,20 @@ export default async function AdminLayout({
             </div>
             <span className="text-white font-bold tracking-tight">R4TLABS Panel</span>
           </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-neutral-400 hidden sm:block">
-              {session.user.email}
+          {session?.user && (
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-neutral-400 hidden sm:block">
+                {session.user.email}
+              </div>
+              <Link 
+                href="/api/auth/signout?callbackUrl=/"
+                className="text-sm font-medium text-red-400 hover:text-red-300 flex items-center gap-2 transition-colors bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20"
+              >
+                <LogOut className="w-4 h-4" />
+                Salir
+              </Link>
             </div>
-            <Link 
-              href="/api/auth/signout?callbackUrl=/"
-              className="text-sm font-medium text-red-400 hover:text-red-300 flex items-center gap-2 transition-colors bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20"
-            >
-              <LogOut className="w-4 h-4" />
-              Salir
-            </Link>
-          </div>
+          )}
         </div>
       </nav>
 

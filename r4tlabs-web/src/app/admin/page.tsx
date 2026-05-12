@@ -1,10 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 import { CheckCircle2, XCircle, Clock, Database, Users } from "lucide-react";
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
+
 // Forzar revalidación dinámica para que siempre muestre datos frescos
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
+  const session = await getServerSession(authOptions);
+  
+  // Seguridad: Verificar si hay sesión y si el email coincide con el ADMIN_EMAIL
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@r4tlabs.com";
+  if (!session || !session.user || session.user.email !== adminEmail) {
+    redirect("/admin/login?error=AccessDenied");
+  }
   const supabaseUrl = process.env.SUPABASE_URL || "https://dummy.supabase.co";
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "dummy";
   
