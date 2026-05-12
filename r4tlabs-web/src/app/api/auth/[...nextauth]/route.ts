@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import { SupabaseAdapter } from "@auth/supabase-adapter";
 
 const handler = NextAuth({
   providers: [
@@ -16,40 +17,33 @@ const handler = NextAuth({
       }
     }),
   ],
+  adapter: SupabaseAdapter({
+    url: process.env.SUPABASE_URL || "https://dummy.supabase.co",
+    secret: process.env.SUPABASE_SERVICE_ROLE_KEY || "dummy",
+  }),
   callbacks: {
     async redirect({ url, baseUrl }) {
       // Custom redirect logic para manejar redirecciones a diferentes subdominios de clientes
-      // por ejemplo: *.catalogo.com basándonos en el parámetro 'state' si se pasa.
-      
-      // Si la URL es la URL base, la enviamos allí
+      // Ejemplo: tiendajuan.catalogo.com/admin
       if (url.startsWith(baseUrl)) return url;
-      // Permite URLs relativas
       if (url.startsWith("/")) return new URL(url, baseUrl).toString();
       
-      // Lógica de validación de dominios permitidos (ej: subdominios de clientes)
       try {
         const parsedUrl = new URL(url);
-        // Aquí deberías validar que el hostname termina en los dominios permitidos de tus clientes
-        // if (parsedUrl.hostname.endsWith('.catalogo.com') || parsedUrl.hostname.endsWith('.r4tlabs.com')) {
-        //   return url;
-        // }
+        // Permitimos redirecciones a los dominios de los clientes que terminan en .catalogo.com o .r4tlabs.com
+        if (parsedUrl.hostname.endsWith('.catalogo.com') || parsedUrl.hostname.endsWith('.r4tlabs.com')) {
+          return url;
+        }
       } catch (error) {
         console.error("Invalid URL in redirect callback", error);
       }
-      
       return baseUrl;
     },
-    async jwt({ token, account }) {
-      // Guardar tokens si se acaba de hacer login
-      if (account) {
-        token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token;
+    async session({ session, user }: any) {
+      // El user ID viene de Supabase gracias al adaptador
+      if (session?.user) {
+        session.user.id = user.id;
       }
-      return token;
-    },
-    async session({ session, token }: any) {
-      // Pasar token a la sesión
-      session.accessToken = token.accessToken;
       return session;
     }
   },
