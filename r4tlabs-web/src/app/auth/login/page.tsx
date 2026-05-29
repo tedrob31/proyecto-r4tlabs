@@ -5,37 +5,17 @@ import { createClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
 import { Fingerprint, AlertCircle } from "lucide-react";
 
+import { signInWithGoogleAction } from "@/app/actions/auth";
+
 function LoginContent() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
   const scopes = searchParams.get("scopes");
   const error = searchParams.get("error");
 
-  const handleLogin = async () => {
-    const supabase = createClient();
-    
-    // Configurar redirección
-    const redirectUrl = new URL("/api/auth/callback", window.location.origin);
-    redirectUrl.searchParams.set("next", next);
-
-    // Preparar opciones de autenticación
-    const options: any = {
-      redirectTo: redirectUrl.toString(),
-      queryParams: {
-        access_type: "offline",
-        prompt: "consent",
-      },
-    };
-
-    // Si se solicitaron permisos extra (scopes), los añadimos
-    if (scopes) {
-      options.scopes = scopes;
-    }
-
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options,
-    });
+  const handleLogin = () => {
+    // LLamar al Server Action
+    signInWithGoogleAction(next, scopes);
   };
 
   return (
