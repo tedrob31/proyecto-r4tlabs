@@ -9,13 +9,25 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      const isExternal = next.startsWith('http://') || next.startsWith('https://')
+      
+      if (isExternal) {
+        // Redirigir a otro dominio, anexando el email como identificador (temporal)
+        const nextUrl = new URL(next)
+        if (data.user?.email) {
+          nextUrl.searchParams.set('user_email', data.user.email)
+        }
+        return NextResponse.redirect(nextUrl.toString())
+      } else {
+        // Redirigir internamente
+        return NextResponse.redirect(`${origin}${next.startsWith('/') ? next : `/${next}`}`)
+      }
     }
   }
 
   // Si hay error, redirigimos al login con error
-  return NextResponse.redirect(`${origin}/auth/admin/login?error=AuthFailed`)
+  return NextResponse.redirect(`${origin}/auth/login?error=AuthFailed`)
 }
