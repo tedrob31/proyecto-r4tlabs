@@ -1,49 +1,39 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { CheckCircle2, XCircle, Clock, Database, Users } from "lucide-react";
-
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 
 // Forzar revalidación dinámica para que siempre muestre datos frescos
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
-  const session = await getServerSession(authOptions);
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
   
   // Seguridad: Verificar si hay sesión y si el email coincide con el ADMIN_EMAIL
   const adminEmail = process.env.ADMIN_EMAIL || "admin@r4tlabs.com";
-  if (!session || !session.user || session.user.email !== adminEmail) {
-    redirect("/admin/login?error=AccessDenied");
+  if (!user || user.email !== adminEmail) {
+    redirect("/auth/admin/login?error=AccessDenied");
   }
-  const supabaseUrl = process.env.SUPABASE_URL || "https://dummy.supabase.co";
+  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "dummy";
   
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  // Cliente de administrador para listar usuarios de Auth
+  const supabaseAdmin = createSupabaseClient(supabaseUrl, supabaseKey);
   
-  // Obtenemos todos los usuarios y verificamos si tienen una cuenta de Google vinculada
-  const { data: users, error } = await supabase
-    .from("users")
-    .select(`
-      id,
-      name,
-      email,
-      image,
-      accounts (
-        provider,
-        refresh_token
-      )
-    `)
-    .order("email", { ascending: true });
+  // Obtenemos todos los usuarios desde Supabase Auth
+  const { data: authData, error } = await supabaseAdmin.auth.admin.listUsers();
+  const users = authData?.users || [];
 
-  const totalUsers = users?.length || 0;
-  const connectedUsers = users?.filter(u => u.accounts && u.accounts.length > 0 && u.accounts[0].refresh_token)?.length || 0;
+  const totalUsers = users.length;
+  const connectedUsers = users.filter(u => u.user_metadata?.provider_refresh_token).length;
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-white tracking-tight">Gestión de Clientes</h1>
-        <p className="text-neutral-400 mt-1">Supervisa los accesos y tokens de Google Drive de tus clientes B2B.</p>
+        <p className="text-neutral-400 mt-1">Supervisa los accesos y tokens de Google Drive de tus clientes B2B registrados centralmente.</p>
       </div>
 
       {/* Stats Cards */}
@@ -82,28 +72,30 @@ export default async function AdminDashboard() {
                     Error al conectar con Supabase. Verifica tus variables de entorno.
                   </td>
                 </tr>
-              ) : users?.length === 0 ? (
+              ) : users.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="px-6 py-8 text-center text-neutral-500">
                     Aún no hay clientes registrados.
                   </td>
                 </tr>
               ) : (
-                users?.map((user) => {
-                  const hasToken = user.accounts && user.accounts.length > 0 && user.accounts[0].refresh_token;
+                users.map((u) => {
+                  const hasToken = !!u.user_metadata?.provider_refresh_token;
+                  const name = u.user_metadata?.full_name || u.user_metadata?.name || "Sin nombre";
+                  const avatarUrl = u.user_metadata?.avatar_url || u.user_metadata?.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.email || 'U')}&background=0D8ABC&color=fff`;
                   
                   return (
-                    <tr key={user.id} className="hover:bg-neutral-800/30 transition-colors">
+                    <tr key={u.id} className="hover:bg-neutral-800/30 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <img 
-                            src={user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email)}&background=0D8ABC&color=fff`} 
-                            alt={user.email} 
+                            src={avatarUrl} 
+                            alt={u.email} 
                             className="w-10 h-10 rounded-full border border-neutral-700 bg-neutral-800"
                           />
                           <div>
-                            <p className="text-white font-medium">{user.name || "Sin nombre"}</p>
-                            <p className="text-neutral-400 text-xs">{user.email}</p>
+                            <p className="text-white font-medium">{name}</p>
+                            <p className="text-neutral-400 text-xs">{u.email}</p>
                           </div>
                         </div>
                       </td>
@@ -124,7 +116,7 @@ export default async function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4">
                         <code className="text-xs text-neutral-500 bg-neutral-950 px-2 py-1 rounded font-mono">
-                          {user.id}
+                          {u.id}
                         </code>
                       </td>
                     </tr>

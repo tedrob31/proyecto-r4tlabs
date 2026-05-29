@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LogOut, LayoutDashboard } from "lucide-react";
@@ -9,7 +8,8 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-300 flex flex-col selection:bg-blue-500/30">
@@ -21,18 +21,20 @@ export default async function AdminLayout({
             </div>
             <span className="text-white font-bold tracking-tight">R4TLABS Panel</span>
           </div>
-          {session?.user && (
+          {user && (
             <div className="flex items-center gap-4">
               <div className="text-sm text-neutral-400 hidden sm:block">
-                {session.user.email}
+                {user.email}
               </div>
-              <Link 
-                href="/api/auth/signout?callbackUrl=/"
-                className="text-sm font-medium text-red-400 hover:text-red-300 flex items-center gap-2 transition-colors bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20"
-              >
-                <LogOut className="w-4 h-4" />
-                Salir
-              </Link>
+              <form action="/api/auth/signout" method="post">
+                <button 
+                  type="submit"
+                  className="text-sm font-medium text-red-400 hover:text-red-300 flex items-center gap-2 transition-colors bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Salir
+                </button>
+              </form>
             </div>
           )}
         </div>

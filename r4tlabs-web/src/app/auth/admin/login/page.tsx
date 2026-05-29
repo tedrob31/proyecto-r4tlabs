@@ -1,12 +1,25 @@
 "use client";
 
-import { signIn } from "next-auth/react";
 import { Shield, Lock } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-
+import { createClient } from "@/lib/supabase/client";
 export default function AdminLogin() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
+
+  const handleLogin = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback?next=/auth/admin`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
+      },
+    });
+  };
 
   return (
     <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-6 selection:bg-blue-500/30">
@@ -33,9 +46,17 @@ export default function AdminLogin() {
               </p>
             </div>
           )}
+          {error === "AuthFailed" && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
+              <Lock className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <p className="text-sm text-red-400">
+                Ocurrió un error al intentar iniciar sesión con Google.
+              </p>
+            </div>
+          )}
 
           <button
-            onClick={() => signIn("google", { callbackUrl: "/admin" })}
+            onClick={handleLogin}
             className="w-full h-12 bg-white hover:bg-neutral-100 text-black font-semibold rounded-xl transition-colors flex items-center justify-center gap-3"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5">
