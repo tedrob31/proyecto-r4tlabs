@@ -22,6 +22,13 @@ export const authOptions: NextAuthOptions = {
     secret: process.env.SUPABASE_SERVICE_ROLE_KEY || "dummy",
   }),
   callbacks: {
+    async signIn({ user }) {
+      // Verificar si el correo del usuario coincide con ADMIN_EMAIL
+      if (user.email !== process.env.ADMIN_EMAIL) {
+        return false; // Retorna falso para denegar acceso, NextAuth redirigirá con error=AccessDenied
+      }
+      return true;
+    },
     async redirect({ url, baseUrl }) {
       if (url.startsWith(baseUrl)) return url;
       if (url.startsWith("/")) return new URL(url, baseUrl).toString();
@@ -37,7 +44,7 @@ export const authOptions: NextAuthOptions = {
       return baseUrl;
     },
     async session({ session, user }: any) {
-      if (session?.user) {
+      if (session?.user && user?.id) {
         session.user.id = user.id;
       }
       return session;
