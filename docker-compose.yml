@@ -21,7 +21,7 @@ services:
       - NEXT_TELEMETRY_DISABLED=1
       - NODE_OPTIONS='--max-old-space-size=1024'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/auth/providers"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/"]
       interval: 30s
       timeout: 10s
       retries: 3
